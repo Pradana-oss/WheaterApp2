@@ -2,6 +2,7 @@ package com.imamajie.wheaterapp2;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -16,13 +17,17 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.text.DecimalFormat;
 
 public class MainActivity extends AppCompatActivity {
     EditText etCity, etCountry;
     TextView tvResult;
     private final String url = "http://api.openweathermap.org/data/2.5/weather";
-    private final String appid = "027eb31d3b5226aaa3622a6b98b399f9";
+    private final String appid = "5af755f549fc3b2ac6da5ea6ea0b0897";
     DecimalFormat df = new DecimalFormat(  "#.##");
 
     @Override
@@ -49,7 +54,39 @@ public class MainActivity extends AppCompatActivity {
             StringRequest stringRequest = new StringRequest(Request.Method.POST, tempUrl, new Response.Listener<String>(){
                     @Override
                     public void onResponse(String response) {
-                    Log.d( "response", response);
+//                    Log.d( "response", response);
+                        String output = "";
+                        try {
+                            JSONObject jsonResponse = new JSONObject(response);
+                            JSONArray jsonArray = jsonResponse.getJSONArray("weather");
+                            JSONObject jsonObjectWeather = jsonArray.getJSONObject(0);
+                            String description = jsonObjectWeather.getString("description");
+                            JSONObject jsonObjectMain = jsonResponse.getJSONObject("main");
+                            double temp = jsonObjectMain.getDouble("temp") - 273.15;
+                            double feelsLike = jsonObjectMain.getDouble("temp") - 273.25;
+                            float pressure = jsonObjectMain.getInt("pressure");
+                            int humidity = jsonObjectMain.getInt("humidity");
+                            JSONObject jsonObjectWind = jsonResponse.getJSONObject("wind");
+                            String wind = jsonObjectWind.getString("speed");
+                            JSONObject jsonObjectClouds = jsonResponse.getJSONObject("clouds");
+                            String clouds = jsonObjectClouds.getString("all");
+                            JSONObject jsonObjectSys = jsonResponse.getJSONObject("sys");
+                            String countryName = jsonObjectSys.getString("country");
+                            String cityName = jsonResponse.getString("name");
+                            tvResult.setTextColor(Color.rgb(68,134,199));
+                            output += "Current weather of " + cityName + " (" + countryName + ")"
+                                    + "\n Temp: " + df.format(temp) + " C"
+                                    + "\n Feels Like: " + df.format(feelsLike) + " C"
+                                    + "\n Humidity: " + humidity + "%"
+                                    + "\n Description: " + description
+                                    + "\n Wind Speed: " + wind + "m/s (meter per second)"
+                                    + "\n Cloudiness: " + clouds + "%"
+                                    + "\n Pressure: " + pressure + " hPa";
+                            tvResult.setText(output);
+
+                        }catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                 }
             }, new Response.ErrorListener() {
                 @Override
