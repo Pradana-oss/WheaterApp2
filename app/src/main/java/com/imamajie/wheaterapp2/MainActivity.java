@@ -2,10 +2,15 @@ package com.imamajie.wheaterapp2;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -16,6 +21,9 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnSuccessListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -25,10 +33,15 @@ import java.text.DecimalFormat;
 
 public class MainActivity extends AppCompatActivity {
     EditText etCity, etCountry;
-    TextView tvResult;
-    private final String url = "http://api.openweathermap.org/data/2.5/weather";
+    TextView tvResult, textView;
+    Button btnloc;
+    FusedLocationProviderClient fusedLocationProviderClient;
+
+    private final String url = "https://api.openweathermap.org/data/2.5/";
     private final String appid = "5af755f549fc3b2ac6da5ea6ea0b0897";
     DecimalFormat df = new DecimalFormat(  "#.##");
+
+    //https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude={part}&appid={API key}
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +50,90 @@ public class MainActivity extends AppCompatActivity {
         etCity = findViewById(R.id.etCity);
         etCountry = findViewById(R.id.etCountry);
         tvResult = findViewById(R.id.tvResult);
+
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+        btnloc = findViewById(R.id.btnGetLoc);
+        textView = findViewById(R.id.location_text);
+
+        btnloc.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (getApplicationContext().checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                            == PackageManager.PERMISSION_GRANTED) {
+                        fusedLocationProviderClient.getLastLocation()
+                                .addOnSuccessListener(new OnSuccessListener<Location>() {
+                                    @Override
+                                    public void onSuccess(Location location) {
+                                        String tempUrl = "";
+                                        if (location != null) {
+                                            Double lat = location.getLatitude();
+                                            Double lon = location.getLongitude();
+
+                                            tempUrl = url + "onecall?lat=" + lat + "&lon=" + lon + "&exclude=daily&appid=" + appid;
+                                            //https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude={part}&appid={API key}
+                                            textView.setText(lat + " , " + lon);
+                                            Toast.makeText(MainActivity.this, "Success", Toast.LENGTH_SHORT).show();
+
+
+                                            StringRequest stringRequest = new StringRequest(Request.Method.POST, tempUrl, new Response.Listener<String>(){
+                                                @Override
+                                                public void onResponse(String response) {
+//                    Log.d( "response", response);
+                                                    String output = "";
+                                                    try {
+                                                        JSONObject jsonResponse = new JSONObject(response);
+//                                                        JSONArray jsonArray = jsonResponse.getJSONArray("daily");
+//                                                        JSONObject jsonObjectWeather = jsonArray.getJSONObject(0);
+//                                                        String description = jsonObjectWeather.getString("description");
+                                                        JSONObject jsonObjectMain = jsonResponse.getJSONObject("main");
+                                                        double temp = jsonObjectMain.getDouble("temp") - 273.15;
+                                                        double feelsLike = jsonObjectMain.getDouble("temp") - 273.25;
+                                                        float pressure = jsonObjectMain.getInt("pressure");
+                                                        int humidity = jsonObjectMain.getInt("humidity");
+                                                        JSONObject jsonObjectWind = jsonResponse.getJSONObject("wind");
+                                                        String wind = jsonObjectWind.getString("speed");
+                                                        JSONObject jsonObjectClouds = jsonResponse.getJSONObject("clouds");
+                                                        String clouds = jsonObjectClouds.getString("all");
+                                                        JSONObject jsonObjectSys = jsonResponse.getJSONObject("sys");
+
+                                                        tvResult.setTextColor(Color.rgb(68,134,199));
+                                                        output += "Current weather of " + lat + " (" + lon + ")"
+                                                                + "\n Temp: " + df.format(temp) + " C"
+                                                                + "\n Feels Like: " + df.format(feelsLike) + " C"
+                                                                + "\n Humidity: " + humidity + "%"
+//                                                                + "\n Description: " + description
+                                                                + "\n Wind Speed: " + wind + "m/s (meter per second)"
+                                                                + "\n Cloudiness: " + clouds + "%"
+                                                                + "\n Pressure: " + pressure + " hPa";
+                                                        tvResult.setText(output);
+
+                                                    }catch (JSONException e) {
+                                                        e.printStackTrace();
+                                                    }
+                                                }
+                                            }, new Response.ErrorListener() {
+                                                @Override
+                                                public void onErrorResponse(VolleyError error) {
+                                                    Toast.makeText(getApplicationContext(), error.toString().trim(), Toast.LENGTH_SHORT).show();
+                                                }
+                                            });
+                                            RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
+                                            requestQueue.add(stringRequest);
+
+                                        }
+                                    }
+                                });
+
+                    } else {
+                        requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION},1);
+                    }
+                }
+            }});
     }
+
+
 
     public void getWeatherDetails(View View) {
         String tempUrl = "";
@@ -47,9 +143,9 @@ public class MainActivity extends AppCompatActivity {
             tvResult.setText("City field can not be empty!");
         }else{
             if(!country.equals("")){
-                tempUrl = url + "?q=" + city + "," + country + "&appid=" + appid;
+                tempUrl = url + "weather" + "?q=" + city + "," + country + "&appid=" + appid;
             }else{
-                tempUrl = url + "?q=" + city + "&appid=" + appid;
+                tempUrl = url + "weather" + "?q=" + city + "&appid=" + appid;
             }
             StringRequest stringRequest = new StringRequest(Request.Method.POST, tempUrl, new Response.Listener<String>(){
                     @Override
@@ -97,5 +193,9 @@ public class MainActivity extends AppCompatActivity {
             RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
             requestQueue.add(stringRequest);
         }
+    }
+
+    public void getWeatherByLocation(View view){
+
     }
 }
